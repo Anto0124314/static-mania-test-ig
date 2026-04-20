@@ -414,16 +414,17 @@ var Module = {
      This is the lightweight Emscripten FS module from the original project.
      It exposes: FS, IDBFS, PATH as globals + Module['FS'] etc.  -->
 <script>
-  // Check if we are booting into the game or the file manager
-  const isGameMode = sessionStorage.getItem('boot_sonic_mania') === 'true';
-
-  if (!isGameMode) {
-      document.write('<script src="./modules/Files.js"><\\/script>');
+  if (sessionStorage.getItem('boot_sonic_mania') !== 'true') {
+      console.log('[Launcher] Loading File Manager module...');
+      const script = document.createElement('script');
+      script.src = './modules/Files.js';
+      script.async = false; // Forces the browser to execute it in order
+      document.head.appendChild(script);
   } else {
-      console.log("Game's booting, get rid of FIles.js");
+      console.log('[Launcher] Game Mode Active - Bypassing Files.js entirely.');
   }
 </script>
-
+  
 <script>
 /* ============================================================
    STEP 4 — Everything below runs after Files.js is parsed
