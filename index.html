@@ -414,11 +414,20 @@ var Module = {
      This is the lightweight Emscripten FS module from the original project.
      It exposes: FS, IDBFS, PATH as globals + Module['FS'] etc.  -->
 <script>
-  if (sessionStorage.getItem('boot_sonic_mania') !== 'true') {
+  // 1. Read the flag into a temporary session variable
+  window.IS_GAME_MODE = sessionStorage.getItem('boot_sonic_mania') === 'true';
+  
+  // 2. Immediately delete it so F5/Refresh goes back to the launcher
+  if (window.IS_GAME_MODE) {
+      sessionStorage.removeItem('boot_sonic_mania');
+  }
+
+  // 3. Load logic
+  if (!window.IS_GAME_MODE) {
       console.log('[Launcher] Loading File Manager module...');
       const script = document.createElement('script');
       script.src = './modules/Files.js';
-      script.async = false; // Forces the browser to execute it in order
+      script.async = false; // Forces synchronous execution
       document.head.appendChild(script);
   } else {
       console.log('[Launcher] Game Mode Active - Bypassing Files.js entirely.');
@@ -893,13 +902,15 @@ function exitEngine() {
 
 /* ============================================================
    AUTO-BOOT LOGIC
-   If the page reloads in Game Mode, launch the engine automatically
    ============================================================ */
 window.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('boot_sonic_mania') === 'true') {
+  document.title = 'Sonic Mania';
+
+  // Boot into Game Mode if the temporary flag is true
+  if (window.IS_GAME_MODE) {
     engineLoaded = true;
     
-    // Hide the file manager UI so it's just the game
+    // Hide the file manager UI
     const sidebar = document.getElementById('sidebar');
     const fmWrap = document.getElementById('file-list-wrap');
     if (sidebar) sidebar.style.display = 'none';
@@ -908,7 +919,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('launch-btn').disabled = true;
     setSplashStatus('Loading engine...');
 
-    // Setup console wrapper
+    // Intercept console
     (function() {
       const wrap = (orig, prefix) => function(...args) {
         const text = args.map(a => typeof a === 'object' ? JSON.stringify(a,null,2) : String(a)).join(' ');
@@ -921,8 +932,18 @@ window.addEventListener('DOMContentLoaded', () => {
       console.info  = wrap(console.info,  '[INFO] ');
     })();
 
-                                          
+    // Boot the game engine
     loadScript('./lib/RSDKv5U.js').then(() => loadScript('./modules/RSDKv5U.js'));
+  } else {
+    // We are in Launcher mode! Replay any buffered console lines
+    for (const l of window.__engineConsoleBuffer) appendConsoleLine(l);
+  }
+  
+  // Check SharedArrayBuffer
+  if (typeof SharedArrayBuffer === 'undefined') {
+    console.error('❌ SharedArrayBuffer unavailable (crossOriginIsolated: ' + window.crossOriginIsolated + ')');
+  } else {
+    console.log('✓ SharedArrayBuffer available');
   }
 });
 
