@@ -903,6 +903,13 @@ function launchEngine() {
   document.getElementById('launch-btn').disabled = true;
   setSplashStatus('Loading engine...');
 
+  console.log('[Launcher] Shutting down File Manager module...');
+  window.Module = undefined;
+  window.FS = undefined;
+  window.IDBFS = undefined;
+  window.PATH = undefined;
+  window.ERRNO_CODES = undefined;
+
   // Intercept all console methods for the engine console
   (function() {
     const wrap = (orig, prefix) => function(...args) {
