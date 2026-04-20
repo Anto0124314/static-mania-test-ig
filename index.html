@@ -12,6 +12,38 @@
       4. [on Launch] lib/RSDKv5U.js then modules/RSDKv5U.js — game engine
   -->
   <script src="coi-serviceworker.js"></script>
+  <script>
+    // This bridge function is called by lib/RSDKv5U.js when the game boots.
+    // It takes the IndexedDB data your file manager saved and re-mounts it
+    // into the game's fresh Emscripten FileSystem.
+    window.TS_InitFS = function(mountDirName, onCompleteCallback) {
+        try {
+            console.log('[TS_InitFS] Mounting IDBFS for the game engine...');
+            
+            // Create the root directory in the NEW game filesystem
+            try { FS.mkdir('/' + mountDirName); } catch (e) { /* Ignore if it already exists */ }
+            
+            // Mount Emscripten's IndexedDB File System to that folder
+            FS.mount(IDBFS, {}, '/' + mountDirName);
+            
+            // Sync the files from IndexedDB into the new FS's memory
+            FS.syncfs(true, function (err) {
+                if (err) {
+                    console.error('[TS_InitFS] IDBFS Sync error:', err);
+                    window.__engineConsoleAppend?.('[ERROR] FS Sync failed: ' + err);
+                } else {
+                    console.log('[TS_InitFS] IDBFS successfully synced to game engine.');
+                }
+                
+                // Trigger the callback which ultimately calls RSDK_Init()
+                if (onCompleteCallback) onCompleteCallback();
+            });
+        } catch (err) {
+            console.error('[TS_InitFS] Fatal error during mount:', err);
+            window.__engineConsoleAppend?.('[ERROR] TS_InitFS crashed: ' + err.message);
+        }
+    };
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
