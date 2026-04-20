@@ -413,7 +413,16 @@ var Module = {
 <!-- STEP 3 — Load Files.js (and auto-fetches Files.wasm).
      This is the lightweight Emscripten FS module from the original project.
      It exposes: FS, IDBFS, PATH as globals + Module['FS'] etc.  -->
-<script src="./modules/Files.js"></script>
+<script>
+  // Check if we are booting into the game or the file manager
+  const isGameMode = sessionStorage.getItem('boot_sonic_mania') === 'true';
+
+  if (!isGameMode) {
+      document.write('<script src="./modules/Files.js"><\\/script>');
+  } else {
+      console.log("Game's booting, get rid of FIles.js");
+  }
+</script>
 
 <script>
 /* ============================================================
@@ -869,37 +878,52 @@ let engineLoaded = false;
 
 function launchEngine() {
   if (engineLoaded) return;
-  engineLoaded = true;
-  document.getElementById('launch-btn').disabled = true;
-  setSplashStatus('Loading engine...');
-
-  console.log('[Launcher] Shutting down File Manager module...');
-  window.Module = undefined;
-  window.FS = undefined;
-  window.IDBFS = undefined;
-  window.PATH = undefined;
-  window.ERRNO_CODES = undefined;
-
-  // Intercept all console methods for the engine console
-  (function() {
-    const wrap = (orig, prefix) => function(...args) {
-      const text = args.map(a => typeof a === 'object' ? JSON.stringify(a,null,2) : String(a)).join(' ');
-      window.__engineConsoleAppend?.(prefix + text);
-      orig.apply(console, args);
-    };
-    console.log   = wrap(console.log,   '');
-    console.error = wrap(console.error, '[ERROR] ');
-    console.warn  = wrap(console.warn,  '[WARNING] ');
-    console.info  = wrap(console.info,  '[INFO] ');
-  })();
-
-  // lib/RSDKv5U.js sets its own var Module = { ... } which re-configures
-  // Module with canvas, RSDK_Initialize, TS_InitFS, etc.
-  // It then loads modules/RSDKv5U.js which boots the game wasm.
-  // The engine wasm also provides FS/IDBFS/PATH (replacing Files.js globals),
-  // and TS_InitFS re-mounts IDBFS so uploaded files are visible to the game.
-  loadScript('./lib/RSDKv5U.js').then(() => loadScript('./modules/RSDKv5U.js'));
+  
+  // Set the flag and reload the page to purge Files.js from browser memory
+  sessionStorage.setItem('boot_sonic_mania', 'true');
+  location.reload(); 
 }
+
+// Add a way to return to the file manager if needed
+function exitEngine() {
+  sessionStorage.removeItem('boot_sonic_mania');
+  location.reload();
+}
+
+/* ============================================================
+   AUTO-BOOT LOGIC
+   If the page reloads in Game Mode, launch the engine automatically
+   ============================================================ */
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('boot_sonic_mania') === 'true') {
+    engineLoaded = true;
+    
+    // Hide the file manager UI so it's just the game
+    const sidebar = document.getElementById('sidebar');
+    const fmWrap = document.getElementById('file-list-wrap');
+    if (sidebar) sidebar.style.display = 'none';
+    if (fmWrap) fmWrap.style.display = 'none';
+    
+    document.getElementById('launch-btn').disabled = true;
+    setSplashStatus('Loading engine...');
+
+    // Setup console wrapper
+    (function() {
+      const wrap = (orig, prefix) => function(...args) {
+        const text = args.map(a => typeof a === 'object' ? JSON.stringify(a,null,2) : String(a)).join(' ');
+        window.__engineConsoleAppend?.(prefix + text);
+        orig.apply(console, args);
+      };
+      console.log   = wrap(console.log,   '');
+      console.error = wrap(console.error, '[ERROR] ');
+      console.warn  = wrap(console.warn,  '[WARNING] ');
+      console.info  = wrap(console.info,  '[INFO] ');
+    })();
+
+                                          
+    loadScript('./lib/RSDKv5U.js').then(() => loadScript('./modules/RSDKv5U.js'));
+  }
+});
 
 function loadScript(src) {
   return new Promise((res, rej) => {
