@@ -13,9 +13,7 @@
   -->
   <script src="coi-serviceworker.js"></script>
   <script>
-    // This bridge function is called by lib/RSDKv5U.js when the game boots.
-    // It takes the IndexedDB data your file manager saved and re-mounts it
-    // into the game's fresh Emscripten FileSystem.
+    // function that NEEDS to exist but doesnt exust in lib/RSDKv5U.js
     window.TS_InitFS = function(mountDirName, onCompleteCallback) {
         try {
             console.log('[TS_InitFS] Mounting IDBFS for the game engine...');
